@@ -135,16 +135,21 @@ int SickTimCommon::init_scanner()
   identReply.push_back(0);  // add \0 to convert to string
   serialReply.push_back(0);
   std::string identStr;
-  for(std::vector<unsigned char>::iterator it = identReply.begin(); it != identReply.end(); it++) {
-      if(*it > 13)  // filter control characters for display
-        identStr.push_back(*it);
+  for (std::vector<unsigned char>::iterator it = identReply.begin(); it != identReply.end(); it++)
+  {
+    if (*it > 13) // filter control characters for display
+      identStr.push_back(*it);
   }
   std::string serialStr;
-  for(std::vector<unsigned char>::iterator it = serialReply.begin(); it != serialReply.end(); it++) {
-      if(*it > 13)
-        serialStr.push_back(*it);
+  for (std::vector<unsigned char>::iterator it = serialReply.begin(); it != serialReply.end(); it++)
+  {
+    if (*it > 13)
+      serialStr.push_back(*it);
   }
   diagnostics_.setHardwareID(identStr + " " + serialStr);
+
+  if (!isCompatibleDevice(identStr))
+    return EXIT_FATAL;
 
   /*
    * Read the SOPAS variable 'FirmwareVersion' by name.
@@ -170,6 +175,63 @@ int SickTimCommon::init_scanner()
   }
 
   return EXIT_SUCCESS;
+}
+
+bool sick_tim::SickTimCommon::isCompatibleDevice(const std::string identStr) const
+{
+  const std::string delim = " ";
+
+  size_t start = 0;
+  size_t end = identStr.find(delim);
+  std::vector<std::string> tokens;
+  while (end != std::string::npos)
+  {
+    tokens.push_back(identStr.substr(start, end - start));
+    start = end + delim.length();
+    end = identStr.find(delim, start);
+  }
+  tokens.push_back(identStr.substr(start, end - start));
+
+  std::string device_string, version_string;
+  bool is_tim3xx = false;
+  int version_major = -1;
+  int version_minor = -1;
+
+  for (size_t i = 0; i < tokens.size(); ++i)
+  {
+    // is it a TiM3xx?
+    std::string prefix("TiM3");
+    if (tokens[i].compare(0, prefix.size(), prefix) == 0)
+    {
+      device_string = tokens[i];
+      is_tim3xx = true;
+    }
+
+    // parse version number
+    prefix = "V";
+    if (tokens[i].compare(0, prefix.size(), prefix) == 0)
+    {
+      version_string = tokens[i];
+
+      start = prefix.length();
+      end = version_string.find(".", start);
+      version_major = atoi(version_string.substr(start, end - start).c_str());
+
+      start = end + 1;
+      end = version_string.find_first_not_of("1234567890", start);
+      version_minor = atoi(version_string.substr(start, end - start).c_str());
+    }
+  }
+
+  if (is_tim3xx && version_major >= 2 && version_minor >= 50)
+  {
+    ROS_ERROR("This scanner model/firmware combination does not support ranging output!");
+    ROS_ERROR("Supported scanners: TiM5xx: all firmware versions; TiM3xx: firmware versions < V2.50.");
+    ROS_ERROR("This is a %s, firmware version %s", device_string.c_str(), version_string.c_str());
+
+    return false;
+  }
+  return true;
 }
 
 int SickTimCommon::loopOnce()
