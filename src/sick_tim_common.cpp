@@ -38,6 +38,8 @@
 
 #include <sick_tim/sick_tim_common.h>
 
+#include <boost/tokenizer.hpp>
+
 namespace sick_tim
 {
 
@@ -179,42 +181,32 @@ int SickTimCommon::init_scanner()
 
 bool sick_tim::SickTimCommon::isCompatibleDevice(const std::string identStr) const
 {
-  const std::string delim = " ";
-
-  size_t start = 0;
-  size_t end = identStr.find(delim);
-  std::vector<std::string> tokens;
-  while (end != std::string::npos)
-  {
-    tokens.push_back(identStr.substr(start, end - start));
-    start = end + delim.length();
-    end = identStr.find(delim, start);
-  }
-  tokens.push_back(identStr.substr(start, end - start));
-
   std::string device_string, version_string;
   bool is_tim3xx = false;
   int version_major = -1;
   int version_minor = -1;
 
-  for (size_t i = 0; i < tokens.size(); ++i)
+  typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
+  boost::char_separator<char> sep(" ");
+  tokenizer tok(identStr, sep);
+  for (tokenizer::iterator token = tok.begin(); token != tok.end(); ++token)
   {
     // is it a TiM3xx?
     std::string prefix("TiM3");
-    if (tokens[i].compare(0, prefix.size(), prefix) == 0)
+    if (token->compare(0, prefix.size(), prefix) == 0)
     {
-      device_string = tokens[i];
+      device_string = *token;
       is_tim3xx = true;
     }
 
     // parse version number
     prefix = "V";
-    if (tokens[i].compare(0, prefix.size(), prefix) == 0)
+    if (token->compare(0, prefix.size(), prefix) == 0)
     {
-      version_string = tokens[i];
+      version_string = *token;
 
-      start = prefix.length();
-      end = version_string.find(".", start);
+      size_t start = prefix.length();
+      size_t end = version_string.find(".", start);
       version_major = atoi(version_string.substr(start, end - start).c_str());
 
       start = end + 1;
