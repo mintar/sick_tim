@@ -73,10 +73,10 @@ install(
         sick_tim_datagram_test
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
-install(FILES include/${PROJECT_NAME}/abstract_parser.h
-              include/${PROJECT_NAME}/sick_tim_common.h
-              include/${PROJECT_NAME}/sick_tim_common_usb.h
-    DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+install(DIRECTORY include/${PROJECT_NAME}/
+    DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+    FILES_MATCHING PATTERN "*.h"
+)
 
 install(DIRECTORY launch/
     DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch)
