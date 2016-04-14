@@ -38,7 +38,8 @@
 
 #include <sick_tim/sick_tim_common.h>
 
-#include <boost/tokenizer.hpp>
+#include <cstdio>
+#include <cstring>
 
 namespace sick_tim
 {
@@ -181,45 +182,18 @@ int SickTimCommon::init_scanner()
 
 bool sick_tim::SickTimCommon::isCompatibleDevice(const std::string identStr) const
 {
-  std::string device_string, version_string;
-  bool is_tim3xx = false;
+  char device_string[7];
   int version_major = -1;
   int version_minor = -1;
 
-  typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
-  boost::char_separator<char> sep(" ");
-  tokenizer tok(identStr, sep);
-  for (tokenizer::iterator token = tok.begin(); token != tok.end(); ++token)
-  {
-    // is it a TiM3xx?
-    std::string prefix("TiM3");
-    if (token->compare(0, prefix.size(), prefix) == 0)
-    {
-      device_string = *token;
-      is_tim3xx = true;
-    }
-
-    // parse version number
-    prefix = "V";
-    if (token->compare(0, prefix.size(), prefix) == 0)
-    {
-      version_string = *token;
-
-      size_t start = prefix.length();
-      size_t end = version_string.find(".", start);
-      version_major = atoi(version_string.substr(start, end - start).c_str());
-
-      start = end + 1;
-      end = version_string.find_first_not_of("1234567890", start);
-      version_minor = atoi(version_string.substr(start, end - start).c_str());
-    }
-  }
-
-  if (is_tim3xx && version_major >= 2 && version_minor >= 50)
+  if (sscanf(identStr.c_str(), "sRA 0 6 %6s E V%d.%d", device_string,
+             &version_major, &version_minor) == 3
+      && strncmp("TiM3", device_string, 4) == 0
+      && version_major >= 2 && version_minor >= 50)
   {
     ROS_ERROR("This scanner model/firmware combination does not support ranging output!");
     ROS_ERROR("Supported scanners: TiM5xx: all firmware versions; TiM3xx: firmware versions < V2.50.");
-    ROS_ERROR("This is a %s, firmware version %s", device_string.c_str(), version_string.c_str());
+    ROS_ERROR("This is a %s, firmware version %d.%d", device_string, version_major, version_minor);
 
     return false;
   }
